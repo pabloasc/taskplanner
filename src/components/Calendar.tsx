@@ -1,7 +1,10 @@
-import { format, addDays } from 'date-fns';
-import { ChevronLeftIcon, ChevronRightIcon, BookmarkIcon } from '@heroicons/react/24/outline';
+'use client';
+
 import { useState } from 'react';
-import { useTaskStore } from '../store/taskStore';
+import { format, addDays } from 'date-fns';
+import { ChevronLeftIcon, ChevronRightIcon, BookmarkIcon, BookmarkSlashIcon } from '@heroicons/react/24/outline';
+import { useTaskStore } from '@/store/taskStore';
+import { Toast } from './Toast';
 
 interface Task {
   day: number;
@@ -13,103 +16,132 @@ interface CalendarProps {
 }
 
 export default function Calendar({ tasks }: CalendarProps) {
-  const [currentDayIndex, setCurrentDayIndex] = useState(0);
+  const [currentDay, setCurrentDay] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const today = new Date();
-  const addTask = useTaskStore((state) => state.addTask);
-  
-  const handlePrevDay = () => {
-    setCurrentDayIndex((prev) => Math.max(0, prev - 1));
+  const { addTask, removeTask, savedTasks } = useTaskStore();
+
+  const currentTasks = tasks[currentDay];
+
+  const goToPrevious = () => {
+    setCurrentDay((prev) => Math.max(0, prev - 1));
   };
 
-  const handleNextDay = () => {
-    setCurrentDayIndex((prev) => Math.min(tasks.length - 1, prev + 1));
+  const goToNext = () => {
+    setCurrentDay((prev) => Math.min(tasks.length - 1, prev + 1));
   };
 
-  const handleSaveTask = (task: string) => {
-    const currentTask = tasks[currentDayIndex];
-    const currentDate = addDays(today, currentTask.day - 1);
+  const getSavedTaskId = (taskText: string, day: number) => {
+    const date = addDays(today, day - 1).toISOString().split('T')[0];
+    const savedTask = savedTasks.find(task => task.text === taskText && task.date === date);
+    return savedTask?.id;
+  };
+
+  const isTaskSaved = (taskText: string, day: number) => {
+    return getSavedTaskId(taskText, day) !== undefined;
+  };
+
+  const showToastMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  const handleTaskAction = (taskText: string, day: number) => {
+    const savedTaskId = getSavedTaskId(taskText, day);
     
-    addTask({
-      id: Math.random().toString(36).substr(2, 9),
-      date: format(currentDate, 'yyyy-MM-dd'),
-      task,
-      dayNumber: currentTask.day
-    });
+    if (savedTaskId) {
+      removeTask(savedTaskId);
+      showToastMessage('Task removed from saved tasks');
+    } else {
+      const date = addDays(today, day - 1);
+      addTask({
+        id: `${Date.now()}-${Math.random()}`,
+        text: taskText,
+        day,
+        date: date.toISOString().split('T')[0],
+      });
+      showToastMessage('Task saved successfully!');
+    }
   };
 
-  const currentTask = tasks[currentDayIndex];
-  const currentDate = addDays(today, currentTask.day - 1);
+  if (!currentTasks) {
+    return null;
+  }
+
+  const currentDate = addDays(today, currentTasks.day - 1);
 
   return (
-    <div className="mt-8 max-w-3xl mx-auto">
-      <div className="bg-white border rounded-lg shadow-sm">
-        {/* Calendar Header */}
-        <div className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handlePrevDay}
-              disabled={currentDayIndex === 0}
-              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
-            </button>
-            
-            <div className="text-center">
-              <div className="text-lg font-medium text-gray-900">
-                {format(currentDate, 'EEEE')}
-              </div>
-              <div className="text-sm text-gray-500">
-                {format(currentDate, 'MMMM d, yyyy')}
-              </div>
-            </div>
-
-            <button
-              onClick={handleNextDay}
-              disabled={currentDayIndex === tasks.length - 1}
-              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
-            </button>
-          </div>
+    <div className="mt-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={goToPrevious}
+            disabled={currentDay === 0}
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeftIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+            {format(currentDate, 'EEEE, MMMM d')}
+          </h3>
+          <button
+            onClick={goToNext}
+            disabled={currentDay === tasks.length - 1}
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRightIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          </button>
         </div>
 
-        {/* Tasks List */}
-        <div className="p-6">
-          <div className="space-y-3">
-            {currentTask.tasks.map((task, index) => (
-              <div
-                key={index}
-                className="flex items-start rounded-md p-3 hover:bg-gray-50 group transition-colors"
-              >
-                <span className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 font-medium mr-3 flex-shrink-0 border">
-                  {index + 1}
-                </span>
-                <p className="text-gray-700 text-sm flex-grow leading-relaxed">{task}</p>
-                <button
-                  onClick={() => handleSaveTask(task)}
-                  className="ml-4 p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all"
+        <div className="p-4">
+          <ul className="space-y-3">
+            {currentTasks.tasks.map((task, index) => {
+              const saved = isTaskSaved(task, currentTasks.day);
+              return (
+                <li
+                  key={index}
+                  className={`flex items-center justify-between p-3 rounded-lg group transition-colors ${
+                    saved 
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100' 
+                      : 'bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100'
+                  }`}
                 >
-                  <BookmarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Progress Indicator */}
-          <div className="mt-6 flex justify-center items-center space-x-1.5">
-            {tasks.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                  index === currentDayIndex
-                    ? 'bg-gray-900'
-                    : 'bg-gray-200'
-                }`}
-              />
-            ))}
-          </div>
+                  <div className="flex items-start">
+                    <span className={`h-5 w-5 rounded-full flex items-center justify-center text-xs mr-3 mt-0.5 ${
+                      saved 
+                        ? 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200' 
+                        : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <span className={saved ? 'text-green-900 dark:text-green-100' : 'text-gray-900 dark:text-gray-100'}>
+                      {task}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleTaskAction(task, currentTasks.day)}
+                    className={`p-1.5 rounded-full transition-all ${
+                      saved
+                        ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-800 hover:bg-green-200 dark:hover:bg-green-700'
+                        : 'opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {saved ? (
+                      <BookmarkSlashIcon className="h-4 w-4" />
+                    ) : (
+                      <BookmarkIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </div>
+      
+      <Toast show={showToast} message={toastMessage} />
     </div>
   );
 }

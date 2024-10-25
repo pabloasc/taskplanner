@@ -1,18 +1,21 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Navigation } from './components/Navigation';
-import { SavedTasks } from './pages/SavedTasks';
-import { HomePage } from './pages/HomePage';
+import { SavedTasks } from './components/SavedTasks';
+import { HomePage } from './components/HomePage';
+import { ThemeProvider } from './components/ThemeProvider';
 
 export function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-white">
-        <Navigation />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/saved" element={<SavedTasks />} />
-        </Routes>
-      </div>
-    </Router>
+    <ThemeProvider defaultTheme="system" attribute="class">
+      <Router>
+        <div className="min-h-screen bg-background text-foreground">
+          <Navigation />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/saved" element={<SavedTasks />} />
+          </Routes>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
